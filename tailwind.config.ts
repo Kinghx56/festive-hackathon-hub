@@ -58,10 +58,12 @@ export default {
           gold: "hsl(var(--christmas-gold))",
           "dark-green": "hsl(var(--christmas-dark-green))",
           snow: "hsl(var(--christmas-snow))",
+          white: "hsl(var(--christmas-white))",
           ice: "hsl(var(--christmas-ice))",
           gingerbread: "hsl(var(--christmas-gingerbread))",
           candy: "hsl(var(--christmas-candy))",
           holly: "hsl(var(--christmas-holly))",
+          silver: "hsl(var(--christmas-silver))",
         },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",

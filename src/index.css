@@ -6,60 +6,109 @@
 
 @layer base {
   :root {
-    --background: 220 25% 8%;
-    --foreground: 40 33% 95%;
+    --background: 210 25% 88%;
+    --foreground: 220 25% 15%;
 
-    --card: 220 20% 12%;
-    --card-foreground: 40 33% 95%;
+    --card: 210 20% 95%;
+    --card-foreground: 220 20% 10%;
 
-    --popover: 220 20% 12%;
-    --popover-foreground: 40 33% 95%;
+    --popover: 210 20% 95%;
+    --popover-foreground: 220 20% 10%;
 
-    --primary: 0 72% 51%;
-    --primary-foreground: 40 33% 98%;
+    --primary: 0 85% 58%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 160 84% 25%;
-    --secondary-foreground: 40 33% 98%;
+    --secondary: 210 25% 90%;
+    --secondary-foreground: 220 20% 10%;
 
-    --muted: 220 15% 18%;
-    --muted-foreground: 220 10% 60%;
+    --muted: 210 25% 90%;
+    --muted-foreground: 220 10% 35%;
 
-    --accent: 38 92% 50%;
-    --accent-foreground: 220 25% 8%;
+    --accent: 0 85% 58%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 40 33% 98%;
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 220 15% 20%;
-    --input: 220 15% 18%;
-    --ring: 0 72% 51%;
+    --border: 210 25% 82%;
+    --input: 210 25% 90%;
+    --ring: 0 85% 58%;
 
     --radius: 0.75rem;
 
-    /* Christmas specific tokens */
-    --christmas-red: 0 72% 51%;
-    --christmas-green: 160 84% 25%;
-    --christmas-gold: 38 92% 50%;
-    --christmas-dark-green: 160 84% 15%;
-    --christmas-snow: 210 40% 96%;
-    --christmas-ice: 200 80% 92%;
-    --christmas-gingerbread: 30 75% 30%;
+    /* Christmas theme tokens */
+    --christmas-red: 0 85% 58%;
+    --christmas-green: 145 60% 45%;
+    --christmas-gold: 45 95% 55%;
+    --christmas-dark-green: 145 70% 30%;
+    --christmas-snow: 210 30% 92%;
+    --christmas-white: 0 0% 100%;
+    --christmas-ice: 210 60% 95%;
+    --christmas-gingerbread: 30 60% 40%;
     --christmas-candy: 350 90% 72%;
     --christmas-holly: 145 70% 20%;
+    --christmas-silver: 220 10% 85%;
 
     /* Glow effects */
-    --glow-red: 0 0 20px hsl(0 72% 51% / 0.5), 0 0 40px hsl(0 72% 51% / 0.3);
-    --glow-green: 0 0 20px hsl(160 84% 25% / 0.5), 0 0 40px hsl(160 84% 25% / 0.3);
-    --glow-gold: 0 0 20px hsl(38 92% 50% / 0.5), 0 0 40px hsl(38 92% 50% / 0.3);
+    --glow-red: 0 0 20px hsl(0 85% 58% / 0.5), 0 0 40px hsl(0 85% 58% / 0.3);
+    --glow-green: 0 0 20px hsl(145 60% 45% / 0.5), 0 0 40px hsl(145 60% 45% / 0.3);
+    --glow-gold: 0 0 20px hsl(45 95% 55% / 0.5), 0 0 40px hsl(45 95% 55% / 0.3);
 
-    --sidebar-background: 220 20% 10%;
-    --sidebar-foreground: 40 33% 95%;
-    --sidebar-primary: 0 72% 51%;
-    --sidebar-primary-foreground: 40 33% 98%;
-    --sidebar-accent: 220 15% 18%;
-    --sidebar-accent-foreground: 40 33% 95%;
-    --sidebar-border: 220 15% 20%;
-    --sidebar-ring: 0 72% 51%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 220 20% 10%;
+    --sidebar-primary: 0 85% 58%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 40% 96%;
+    --sidebar-accent-foreground: 220 20% 10%;
+    --sidebar-border: 210 30% 88%;
+    --sidebar-ring: 0 85% 58%;
+  }
+
+  .dark {
+    --background: 220 50% 8%;
+    --foreground: 210 40% 98%;
+
+    --card: 220 45% 12%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 220 45% 12%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 0 85% 58%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 40% 20%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 220 40% 15%;
+    --muted-foreground: 220 10% 65%;
+
+    --accent: 0 85% 58%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 40% 20%;
+    --input: 220 40% 15%;
+    --ring: 0 85% 58%;
+
+    --christmas-red: 0 85% 58%;
+    --christmas-green: 145 60% 50%;
+    --christmas-gold: 45 95% 60%;
+    --christmas-dark-green: 145 70% 35%;
+    --christmas-snow: 210 40% 98%;
+    --christmas-white: 210 30% 95%;
+    --christmas-ice: 210 60% 90%;
+
+    --sidebar-background: 220 45% 10%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 0 85% 58%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 40% 15%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 220 40% 20%;
+    --sidebar-ring: 0 85% 58%;
   }
 }
 
@@ -110,7 +159,20 @@
   .christmas-border {
     @apply border-2 border-transparent;
     background: linear-gradient(hsl(var(--card)), hsl(var(--card))) padding-box,
-                linear-gradient(135deg, hsl(var(--christmas-red)), hsl(var(--christmas-gold)), hsl(var(--christmas-green))) border-box;
+                linear-gradient(135deg, hsl(var(--christmas-red)), hsl(var(--christmas-white)), hsl(var(--christmas-red))) border-box;
+  }
+
+  .christmas-card {
+    @apply glass-card border-2;
+    border-image: linear-gradient(135deg, hsl(var(--christmas-red)), hsl(var(--christmas-white))) 1;
+  }
+
+  .text-gradient-red-white {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-[hsl(var(--christmas-red))] via-[hsl(var(--christmas-white))] to-[hsl(var(--christmas-red))];
+  }
+
+  .bg-gradient-christmas {
+    @apply bg-gradient-to-br from-[hsl(var(--christmas-red))] via-[hsl(var(--christmas-white))] to-[hsl(var(--christmas-red))];
   }
 }
 
@@ -167,8 +229,74 @@
   50% { transform: rotate(3deg); }
 }
 
+@keyframes sparkle {
+  0%, 100% { 
+    opacity: 1; 
+    transform: scale(1) rotate(0deg);
+    filter: brightness(1);
+  }
+  50% { 
+    opacity: 0.6; 
+    transform: scale(1.2) rotate(180deg);
+    filter: brightness(1.5);
+  }
+}
+
+@keyframes snow-drift {
+  0% {
+    transform: translateX(0) translateY(-10px) rotate(0deg);
+  }
+  100% {
+    transform: translateX(100px) translateY(100vh) rotate(360deg);
+  }
+}
+
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+@keyframes snowglobe-fall {
+  0% {
+    transform: translateY(-20px) translateX(0) rotate(0deg) scale(1);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) translateX(50px) rotate(360deg) scale(0.5);
+    opacity: 0;
+  }
+}
+
+.animate-confetti-fall {
+  animation: confetti-fall linear forwards;
+}
+
+.animate-snowglobe-fall {
+  animation: snowglobe-fall linear forwards;
+}
+
 .animate-twinkle {
   animation: twinkle 2s ease-in-out infinite;
+}
+
+.animate-sparkle {
+  animation: sparkle 3s ease-in-out infinite;
+}
+
+.animate-snow-drift {
+  animation: snow-drift linear infinite;
 }
 
 .animate-fall {

@@ -22,7 +22,10 @@ const Header = () => {
       <div className="container mx-auto px-4 pt-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 group">
+          <Link 
+            to="/" 
+            className="flex items-center gap-2 group"
+          >
             <div className="relative">
               <TreePine className="w-8 h-8 text-christmas-green animate-bounce-gentle" />
               <div className="absolute -top-1 -right-1 w-3 h-3 bg-christmas-gold rounded-full animate-twinkle" />
@@ -47,8 +50,8 @@ const Header = () => {
               </Link>
             ))}
             <Link to="/register">
-              <Button className="bg-christmas-red hover:bg-christmas-red/90 text-white glow-red">
-                🎄 Join Now
+              <Button className="bg-christmas-red hover:bg-christmas-red/90 text-white glow-red flex items-center gap-2">
+                <TreePine className="w-4 h-4" /> Join Now
               </Button>
             </Link>
           </nav>

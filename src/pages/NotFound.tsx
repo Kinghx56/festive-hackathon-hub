@@ -1,7 +1,7 @@
 import { useLocation, Link } from "react-router-dom";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { TreePine, Home, Snowflake } from "lucide-react";
+import { TreePine, Home, Snowflake, Sparkles } from "lucide-react";
 import Snowfall from "@/components/Snowfall";
 
 const NotFound = () => {
@@ -22,8 +22,8 @@ const NotFound = () => {
           <TreePine className="absolute -bottom-4 -left-8 w-16 h-16 text-christmas-green animate-bounce-gentle" />
         </div>
         
-        <h1 className="text-3xl md:text-4xl font-display font-bold mb-4">
-          Oops! Lost in the <span className="text-christmas-red">Snow</span>! ❄️
+        <h1 className="text-3xl md:text-4xl font-display font-bold mb-4 flex items-center justify-center gap-2">
+          Oops! Lost in the <span className="text-christmas-red">Snow</span>! <Snowflake className="w-8 h-8" />
         </h1>
         
         <p className="text-muted-foreground text-lg mb-8 max-w-md mx-auto">
@@ -37,8 +37,8 @@ const NotFound = () => {
           </Button>
         </Link>
         
-        <div className="mt-12 font-script text-christmas-gold text-xl">
-          ✨ May your journey be merry and bright! ✨
+        <div className="mt-12 font-script text-christmas-gold text-xl flex items-center justify-center gap-2">
+          <Sparkles className="w-5 h-5" /> May your journey be merry and bright! <Sparkles className="w-5 h-5" />
         </div>
       </div>
     </div>

@@ -12,7 +12,15 @@ import { CheckCircle, ChevronLeft, ChevronRight, Upload, X, TreePine, Gift, User
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import Snowfall from '@/components/Snowfall';
+import Stars from '@/components/Stars';
+import ThemeToggle from '@/components/ThemeToggle';
+import FileUpload from '@/components/FileUpload';
+import Confetti from '@/components/Confetti';
+import MusicPlayer from '@/components/MusicPlayer';
+import SnowGlobe from '@/components/SnowGlobe';
+import { playSuccessJingle } from '@/utils/sounds';
 import { toast } from 'sonner';
+import { useEffect } from 'react';
 
 // Step schemas
 const humanVerifySchema = z.object({
@@ -58,6 +66,15 @@ const Register = () => {
     members: [{ name: '', email: '', role: '' }, { name: '', email: '', role: '' }],
   });
   const [uploadedFiles, setUploadedFiles] = useState<{ [key: string]: File | null }>({});
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [snowGlobeActive, setSnowGlobeActive] = useState(false);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setSnowGlobeActive(true);
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const steps = [
     { title: 'Verify', icon: CheckCircle, description: 'Human check' },
@@ -102,8 +119,11 @@ const Register = () => {
   };
 
   const handleSubmit = () => {
-    toast.success('🎄 Registration submitted successfully!', {
+    setShowConfetti(true);
+    playSuccessJingle();
+    toast.success('Registration submitted successfully!', {
       description: 'Check your email for confirmation.',
+      icon: <TreePine className="w-5 h-5" />,
     });
     // Here you would send data to API
     console.log('Form data:', formData);
@@ -118,7 +138,7 @@ const Register = () => {
       case 0:
         return (
           <div className="text-center space-y-8">
-            <div className="text-6xl animate-bounce-gentle">🎅</div>
+            <TreePine className="w-20 h-20 mx-auto animate-bounce-gentle text-christmas-green" />
             <h3 className="text-2xl font-display font-semibold">
               Before we begin...
             </h3>
@@ -145,7 +165,7 @@ const Register = () => {
         return (
           <div className="space-y-6">
             <div className="text-center mb-8">
-              <div className="text-4xl mb-2">🎄</div>
+              <TreePine className="w-12 h-12 mx-auto mb-2 text-christmas-green" />
               <h3 className="text-2xl font-display font-semibold">Team Information</h3>
               <p className="text-muted-foreground">Tell us about your team</p>
             </div>
@@ -231,24 +251,13 @@ const Register = () => {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>Team Lead ID Card *</Label>
-              <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-christmas-gold transition-colors cursor-pointer">
-                <input
-                  type="file"
-                  accept="image/*,.pdf"
-                  className="hidden"
-                  id="leadIdUpload"
-                  onChange={(e) => handleFileUpload('leadId', e.target.files?.[0] || null)}
-                />
-                <label htmlFor="leadIdUpload" className="cursor-pointer">
-                  <Upload className="w-10 h-10 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-muted-foreground">
-                    {uploadedFiles.leadId ? uploadedFiles.leadId.name : 'Click to upload ID card (JPG, PNG, PDF)'}
-                  </p>
-                </label>
-              </div>
-            </div>
+            <FileUpload
+              label="Team Lead ID Card *"
+              onFileSelect={(file) => handleFileUpload('leadId', file)}
+              accept=".jpg,.jpeg,.png,.pdf"
+              maxSize={5}
+              existingFile={uploadedFiles.leadId}
+            />
           </div>
         );
 
@@ -256,7 +265,7 @@ const Register = () => {
         return (
           <div className="space-y-6">
             <div className="text-center mb-8">
-              <div className="text-4xl mb-2">👥</div>
+              <Users className="w-12 h-12 mx-auto mb-2 text-christmas-gold" />
               <h3 className="text-2xl font-display font-semibold">Team Members</h3>
               <p className="text-muted-foreground">Add details for each team member</p>
             </div>
@@ -264,7 +273,7 @@ const Register = () => {
             {formData.members?.map((member, index) => (
               <div key={index} className="glass-card p-6 space-y-4">
                 <div className="flex items-center gap-2 mb-4">
-                  <span className="text-christmas-gold">🎁</span>
+                  <Gift className="w-5 h-5 inline-block text-christmas-gold" />
                   <h4 className="font-display font-semibold">
                     {index === 0 ? 'Team Lead' : `Member ${index + 1}`}
                   </h4>
@@ -403,7 +412,7 @@ const Register = () => {
         return (
           <div className="space-y-6">
             <div className="text-center mb-8">
-              <div className="text-4xl mb-2 animate-bounce-gentle">🎁</div>
+              <Gift className="w-12 h-12 mx-auto mb-2 animate-bounce-gentle text-christmas-red" />
               <h3 className="text-2xl font-display font-semibold">Review & Submit</h3>
               <p className="text-muted-foreground">Verify your information before submitting</p>
             </div>
@@ -486,6 +495,13 @@ const Register = () => {
   return (
     <div className="min-h-screen bg-background relative">
       <Snowfall />
+      <div className="dark:block hidden">
+        <Stars />
+      </div>
+      <ThemeToggle />
+      <MusicPlayer />
+      <SnowGlobe active={snowGlobeActive} onComplete={() => setSnowGlobeActive(false)} />
+      <Confetti active={showConfetti} onComplete={() => setShowConfetti(false)} />
       <Header />
 
       <main className="pt-32 pb-20 px-4">
@@ -548,7 +564,7 @@ const Register = () => {
                   disabled={!canProceed()}
                   className="bg-christmas-green hover:bg-christmas-green/90 text-white glow-green"
                 >
-                  🎄 Submit Registration
+                  <TreePine className="w-4 h-4 inline-block mr-2" /> Submit Registration
                 </Button>
               ) : (
                 <Button

@@ -1,4 +1,4 @@
-import { TreePine, Heart, Github, Twitter, Mail } from 'lucide-react';
+import { TreePine, Heart, Github, Twitter, Mail, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const Footer = () => {
@@ -20,7 +20,9 @@ const Footer = () => {
               experience of innovation, creativity, and festive fun.
             </p>
             <p className="font-script text-christmas-gold text-lg">
-              ✨ May your code be merry and bright! ✨
+              <span className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4" /> May your code be merry and bright! <Sparkles className="w-4 h-4" />
+              </span>
             </p>
           </div>
 

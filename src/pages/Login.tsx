@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -7,9 +7,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Mail, Lock, Eye, EyeOff, TreePine, Snowflake } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, TreePine, Snowflake, Sparkles, Gift } from 'lucide-react';
 import Header from '@/components/Header';
 import Snowfall from '@/components/Snowfall';
+import Stars from '@/components/Stars';
+import ThemeToggle from '@/components/ThemeToggle';
+import MusicPlayer from '@/components/MusicPlayer';
+import SnowGlobe from '@/components/SnowGlobe';
+import { playSuccessJingle } from '@/utils/sounds';
 import { toast } from 'sonner';
 
 const loginSchema = z.object({
@@ -23,7 +28,15 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [snowGlobeActive, setSnowGlobeActive] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setSnowGlobeActive(true);
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const {
     register,
@@ -38,16 +51,24 @@ const Login = () => {
     // Simulate API call
     setTimeout(() => {
       setIsLoading(false);
-      toast.success('🎄 Welcome back!', {
+      playSuccessJingle();
+      toast.success('Welcome back!', {
         description: 'Successfully logged in to your dashboard.',
+        icon: <TreePine className="w-5 h-5" />,
       });
       navigate('/dashboard');
     }, 1500);
   };
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden">
+    <div className="min-h-screen bg-background relative">
       <Snowfall />
+      <div className="dark:block hidden">
+        <Stars />
+      </div>
+      <ThemeToggle />
+      <MusicPlayer />
+      <SnowGlobe active={snowGlobeActive} onComplete={() => setSnowGlobeActive(false)} />
       <Header />
 
       <main className="pt-32 pb-20 px-4">
@@ -56,7 +77,9 @@ const Login = () => {
             {/* Left side - Illustration */}
             <div className="hidden lg:flex flex-col items-center justify-center text-center p-8">
               <div className="relative">
-                <div className="text-9xl mb-6 animate-float">🎅</div>
+                <div className="mb-6 animate-float">
+                  <TreePine className="w-32 h-32 mx-auto text-christmas-green" />
+                </div>
                 <Snowflake className="absolute -top-4 -left-8 w-8 h-8 text-christmas-ice animate-spin-slow" />
                 <Snowflake className="absolute top-10 -right-12 w-6 h-6 text-christmas-snow animate-spin-slow" style={{ animationDirection: 'reverse' }} />
                 <TreePine className="absolute bottom-0 left-0 w-16 h-16 text-christmas-green opacity-50" />
@@ -66,7 +89,9 @@ const Login = () => {
                 Welcome Back, <span className="text-christmas-red">Hacker!</span>
               </h2>
               <p className="text-muted-foreground font-script text-xl">
-                Santa's workshop awaits your return ✨
+                <span className="flex items-center justify-center gap-2">
+                  Santa's workshop awaits your return <Sparkles className="w-5 h-5" />
+                </span>
               </p>
             </div>
 
@@ -75,7 +100,9 @@ const Login = () => {
               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-christmas-red via-christmas-gold to-christmas-green" />
               
               <div className="text-center mb-8">
-                <div className="text-4xl mb-2 lg:hidden">🎅</div>
+                <div className="mb-2 lg:hidden">
+                  <TreePine className="w-12 h-12 mx-auto text-christmas-green" />
+                </div>
                 <h1 className="text-2xl font-display font-bold mb-2">
                   Team <span className="text-christmas-gold">Login</span>
                 </h1>
@@ -165,14 +192,14 @@ const Login = () => {
                 </p>
                 <Link to="/register">
                   <Button variant="outline" className="border-christmas-green text-christmas-green hover:bg-christmas-green hover:text-white">
-                    🎄 Register Your Team
+                    <TreePine className="w-4 h-4 inline-block mr-2" /> Register Your Team
                   </Button>
                 </Link>
               </div>
 
               {/* Decorative elements */}
-              <div className="absolute -bottom-4 -left-4 text-6xl opacity-10">🎁</div>
-              <div className="absolute -bottom-4 -right-4 text-6xl opacity-10">🎄</div>
+              <Gift className="absolute -bottom-4 -left-4 w-16 h-16 opacity-10 text-christmas-red" />
+              <TreePine className="absolute -bottom-4 -right-4 w-16 h-16 opacity-10 text-christmas-green" />
             </div>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -16,15 +16,29 @@ import {
   Trophy,
   ExternalLink,
   ChevronRight,
-  TreePine
+  TreePine,
+  Crown
 } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import Snowfall from '@/components/Snowfall';
+import Stars from '@/components/Stars';
+import ThemeToggle from '@/components/ThemeToggle';
+import MusicPlayer from '@/components/MusicPlayer';
+import SnowGlobe from '@/components/SnowGlobe';
+import { playSuccessJingle } from '@/utils/sounds';
 import CountdownTimer from '@/components/CountdownTimer';
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
+  const [snowGlobeActive, setSnowGlobeActive] = useState(false);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setSnowGlobeActive(true);
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Mock data
   const teamData = {
@@ -85,6 +99,12 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-background relative">
       <Snowfall />
+      <div className="dark:block hidden">
+        <Stars />
+      </div>
+      <ThemeToggle />
+      <MusicPlayer />
+      <SnowGlobe active={snowGlobeActive} onComplete={() => setSnowGlobeActive(false)} />
       <Header />
 
       <main className="pt-32 pb-20 px-4">
@@ -95,7 +115,9 @@ const Dashboard = () => {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <h1 className="text-2xl md:text-3xl font-display font-bold mb-2">
-                  Ho Ho Ho, <span className="text-christmas-red">{teamData.name}</span>! 🎅
+                  <span className="flex items-center gap-2">
+                    Ho Ho Ho, <span className="text-christmas-red">{teamData.name}</span>! <TreePine className="w-6 h-6 text-christmas-green" />
+                  </span>
                 </h1>
                 <p className="text-muted-foreground">
                   Team ID: <span className="text-christmas-gold font-mono">{teamData.id}</span>
@@ -189,13 +211,13 @@ const Dashboard = () => {
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   {[
-                    { date: 'Dec 20', event: 'Registration Closes', emoji: '⏰' },
-                    { date: 'Dec 24', event: 'Hackathon Begins', emoji: '🚀' },
-                    { date: 'Dec 25', event: 'Submissions Due', emoji: '📦' },
-                    { date: 'Dec 26', event: 'Results', emoji: '🏆' },
+                    { date: 'Dec 20', event: 'Registration Closes', icon: Clock },
+                    { date: 'Dec 24', event: 'Hackathon Begins', icon: TreePine },
+                    { date: 'Dec 25', event: 'Submissions Due', icon: FileText },
+                    { date: 'Dec 26', event: 'Results', icon: Trophy },
                   ].map((item) => (
                     <div key={item.event} className="text-center p-4 bg-muted/30 rounded-lg">
-                      <div className="text-2xl mb-2">{item.emoji}</div>
+                      <item.icon className="w-8 h-8 mx-auto mb-2 text-christmas-gold" />
                       <div className="font-semibold text-christmas-gold">{item.date}</div>
                       <div className="text-sm text-muted-foreground">{item.event}</div>
                     </div>
@@ -215,7 +237,7 @@ const Dashboard = () => {
                     <div key={member.email} className="christmas-border rounded-xl p-4 bg-card">
                       <div className="flex items-center gap-3 mb-3">
                         <div className="w-12 h-12 rounded-full bg-christmas-green/20 flex items-center justify-center text-lg">
-                          {index === 0 ? '👑' : '🎄'}
+                          {index === 0 ? <Crown className="w-5 h-5 text-christmas-gold" /> : <TreePine className="w-5 h-5 text-christmas-green" />}
                         </div>
                         <div>
                           <h4 className="font-semibold">{member.name}</h4>

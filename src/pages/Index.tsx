@@ -1,14 +1,45 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Gift, Users, Trophy, Calendar, Sparkles, TreePine, Star } from 'lucide-react';
+import { Gift, Users, Trophy, Calendar, Sparkles, TreePine, Star, Clock } from 'lucide-react';
 import CountdownTimer from '@/components/CountdownTimer';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import Snowfall from '@/components/Snowfall';
+import Stars from '@/components/Stars';
+import ThemeToggle from '@/components/ThemeToggle';
+import MusicPlayer from '@/components/MusicPlayer';
+import SnowGlobe from '@/components/SnowGlobe';
+import FAQ from '@/components/FAQ';
+import Sponsors from '@/components/Sponsors';
 
 const Index = () => {
+  const navigate = useNavigate();
+  const [snowGlobeActive, setSnowGlobeActive] = useState(false);
+  
   // Set hackathon date (adjust as needed)
   const hackathonDate = new Date('2025-12-25T09:00:00');
+
+  // Snow globe effect every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setSnowGlobeActive(true);
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Admin access via Ctrl+R
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === 'r') {
+        e.preventDefault();
+        navigate('/admin');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [navigate]);
 
   const features = [
     {
@@ -38,23 +69,29 @@ const Index = () => {
   ];
 
   const timeline = [
-    { date: 'Dec 15', event: 'Registration Opens', icon: '🎄', completed: true },
-    { date: 'Dec 20', event: 'Registration Closes', icon: '⏰', completed: false },
-    { date: 'Dec 24', event: 'Hackathon Begins', icon: '🚀', completed: false },
-    { date: 'Dec 25', event: 'Submissions Due', icon: '📦', completed: false },
-    { date: 'Dec 26', event: 'Results Announced', icon: '🏆', completed: false },
+    { date: 'Dec 15', event: 'Registration Opens', icon: TreePine, completed: true },
+    { date: 'Dec 20', event: 'Registration Closes', icon: Clock, completed: false },
+    { date: 'Dec 24', event: 'Hackathon Begins', icon: Sparkles, completed: false },
+    { date: 'Dec 25', event: 'Submissions Due', icon: Gift, completed: false },
+    { date: 'Dec 26', event: 'Results Announced', icon: Trophy, completed: false },
   ];
 
   const tracks = [
-    { name: 'AI & Machine Learning', emoji: '🤖', description: 'Build intelligent solutions using AI/ML technologies' },
-    { name: 'Web3 & Blockchain', emoji: '⛓️', description: 'Create decentralized applications for the future' },
-    { name: 'Healthcare', emoji: '🏥', description: 'Innovate solutions for better healthcare access' },
-    { name: 'Sustainability', emoji: '🌱', description: 'Build apps that help save our planet' },
+    { name: 'AI & Machine Learning', icon: Star, description: 'Build intelligent solutions using AI/ML technologies' },
+    { name: 'Web3 & Blockchain', icon: Sparkles, description: 'Create decentralized applications for the future' },
+    { name: 'Healthcare', icon: Gift, description: 'Innovate solutions for better healthcare access' },
+    { name: 'Sustainability', icon: TreePine, description: 'Build apps that help save our planet' },
   ];
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
       <Snowfall />
+      <div className="dark:block hidden">
+        <Stars />
+      </div>
+      <ThemeToggle />
+      <MusicPlayer />
+      <SnowGlobe active={snowGlobeActive} onComplete={() => setSnowGlobeActive(false)} />
       <Header />
       
       {/* Hero Section */}
@@ -69,7 +106,7 @@ const Index = () => {
 
         <div className="container mx-auto text-center relative z-10">
           <div className="inline-block mb-6 animate-swing">
-            <span className="text-6xl">🎄</span>
+            <TreePine className="w-16 h-16 mx-auto text-christmas-green" />
           </div>
           
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-display font-bold mb-6 animate-fade-in">
@@ -88,13 +125,13 @@ const Index = () => {
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12 animate-fade-in" style={{ animationDelay: '0.6s' }}>
             <Link to="/register">
-              <Button size="lg" className="bg-christmas-red hover:bg-christmas-red/90 text-white text-lg px-8 glow-red">
-                🎁 Register Your Team
+              <Button size="lg" className="bg-christmas-red hover:bg-christmas-red/90 text-white text-lg px-8 glow-red flex items-center gap-2">
+                <Gift className="w-5 h-5" /> Register Your Team
               </Button>
             </Link>
             <Link to="/login">
-              <Button size="lg" variant="outline" className="border-christmas-green text-christmas-green hover:bg-christmas-green hover:text-white text-lg px-8">
-                🔑 Team Login
+              <Button size="lg" variant="outline" className="border-christmas-green text-christmas-green hover:bg-christmas-green hover:text-white text-lg px-8 flex items-center gap-2">
+                <Users className="w-5 h-5" /> Team Login
               </Button>
             </Link>
           </div>
@@ -136,8 +173,8 @@ const Index = () => {
       {/* Timeline Section */}
       <section className="py-20 px-4">
         <div className="container mx-auto">
-          <h2 className="text-3xl md:text-4xl font-display font-bold text-center mb-4">
-            <span className="text-christmas-gold">✨</span> Event Timeline <span className="text-christmas-gold">✨</span>
+          <h2 className="text-3xl md:text-4xl font-display font-bold text-center mb-4 flex items-center justify-center gap-2">
+            <Sparkles className="w-8 h-8 text-christmas-gold" /> Event Timeline <Sparkles className="w-8 h-8 text-christmas-gold" />
           </h2>
           <p className="text-muted-foreground text-center mb-12 max-w-2xl mx-auto">
             Mark your calendars for these important dates
@@ -154,7 +191,7 @@ const Index = () => {
               >
                 <div className={`w-5/12 ${index % 2 === 0 ? 'text-right pr-8' : 'text-left pl-8'}`}>
                   <div className="glass-card p-4 inline-block">
-                    <span className="text-2xl mb-2 block">{item.icon}</span>
+                    <item.icon className="w-8 h-8 mb-2 mx-auto text-christmas-gold" />
                     <h4 className="font-display font-semibold text-christmas-gold">{item.date}</h4>
                     <p className="text-sm text-foreground">{item.event}</p>
                   </div>
@@ -170,8 +207,8 @@ const Index = () => {
       {/* Tracks Section */}
       <section className="py-20 px-4 bg-card/30">
         <div className="container mx-auto">
-          <h2 className="text-3xl md:text-4xl font-display font-bold text-center mb-4">
-            🎯 Problem Tracks
+          <h2 className="text-3xl md:text-4xl font-display font-bold text-center mb-4 flex items-center justify-center gap-2">
+            <Star className="w-8 h-8 text-christmas-gold" /> Problem Tracks
           </h2>
           <p className="text-muted-foreground text-center mb-12 max-w-2xl mx-auto">
             Choose your adventure and build something amazing
@@ -183,7 +220,7 @@ const Index = () => {
                 key={track.name}
                 className="christmas-border rounded-xl p-6 bg-card hover:scale-105 transition-all duration-300 group cursor-pointer"
               >
-                <div className="text-4xl mb-3">{track.emoji}</div>
+                <track.icon className="w-10 h-10 mb-3 text-christmas-gold" />
                 <h3 className="text-xl font-display font-semibold mb-2 group-hover:text-christmas-gold transition-colors">
                   {track.name}
                 </h3>
@@ -193,6 +230,12 @@ const Index = () => {
           </div>
         </div>
       </section>
+
+      {/* Sponsors Section */}
+      <Sponsors />
+
+      {/* FAQ Section */}
+      <FAQ />
 
       {/* CTA Section */}
       <section className="py-20 px-4">
@@ -208,8 +251,8 @@ const Index = () => {
               learn from experts, and win amazing prizes!
             </p>
             <Link to="/register">
-              <Button size="lg" className="bg-christmas-green hover:bg-christmas-green/90 text-white text-lg px-12 glow-green">
-                🎅 Register Now - It's Free!
+              <Button size="lg" className="bg-christmas-green hover:bg-christmas-green/90 text-white text-lg px-12 glow-green flex items-center gap-2">
+                <TreePine className="w-5 h-5" /> Register Now - It's Free!
               </Button>
             </Link>
           </div>
