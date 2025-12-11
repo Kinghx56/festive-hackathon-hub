@@ -44,7 +44,8 @@ import {
   BarChart,
   Mail,
   Lock,
-  LogOut
+  LogOut,
+  Loader2
 } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -55,25 +56,24 @@ import MusicPlayer from '@/components/MusicPlayer';
 import SnowGlobe from '@/components/SnowGlobe';
 import { playSuccessJingle } from '@/utils/sounds';
 import { toast } from 'sonner';
+import { getAllTeams, updateTeamStatus, TeamData } from '@/services/firestore';
+import { collection, onSnapshot } from 'firebase/firestore';
+import { db } from '@/config/firebase';
 
 type TeamStatus = 'pending' | 'approved' | 'rejected';
-
-interface Team {
-  id: string;
-  teamName: string;
-  institution: string;
-  leadName: string;
-  leadEmail: string;
-  memberCount: number;
-  track: string;
-  status: TeamStatus;
-  registeredDate: string;
-  projectTitle: string;
-}
 
 const Admin = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [snowGlobeActive, setSnowGlobeActive] = useState(false);
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [activeTab, setActiveTab] = useState('registrations');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<TeamStatus | 'all'>('all');
+  const [selectedTeam, setSelectedTeam] = useState<(TeamData & { id: string }) | null>(null);
+  const [showDetailsDialog, setShowDetailsDialog] = useState(false);
+  const [teams, setTeams] = useState<(TeamData & { id: string })[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -81,13 +81,6 @@ const Admin = () => {
     }, 30000);
     return () => clearInterval(interval);
   }, []);
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState('registrations');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<TeamStatus | 'all'>('all');
-  const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
-  const [showDetailsDialog, setShowDetailsDialog] = useState(false);
 
   // Check for saved session
   useEffect(() => {
@@ -97,21 +90,65 @@ const Admin = () => {
     }
   }, []);
 
-  const handleLogin = (e: React.FormEvent) => {
+  // Real-time listener for teams
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    setIsLoading(true);
+    const teamsRef = collection(db, 'teams');
+    
+    const unsubscribe = onSnapshot(
+      teamsRef,
+      (snapshot) => {
+        const teamsData = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as (TeamData & { id: string})[];
+        
+        setTeams(teamsData);
+        setIsLoading(false);
+      },
+      (error) => {
+        console.error('Error fetching teams:', error);
+        toast.error('Failed to load teams data');
+        setIsLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [isAuthenticated]);
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simple password check - In production, use proper authentication
-    if (password === 'admin123') {
-      setIsAuthenticated(true);
-      sessionStorage.setItem('adminAuth', 'true');
-      setError('');
-      toast.success('Welcome, Admin!', {
-        description: 'Successfully logged into admin portal.',
+    setError('');
+
+    try {
+      // Fetch admin password from backend
+      const response = await fetch('http://localhost:8080/api/admin/validate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password }),
       });
-    } else {
-      setError('Incorrect password. Please try again.');
-      toast.error('Access Denied', {
-        description: 'Invalid admin credentials.',
-      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setIsAuthenticated(true);
+        sessionStorage.setItem('adminAuth', 'true');
+        toast.success('Welcome, Admin!', {
+          description: 'Successfully logged into admin portal.',
+        });
+      } else {
+        setError('Incorrect password. Please try again.');
+        toast.error('Access Denied', {
+          description: 'Invalid admin credentials.',
+        });
+      }
+    } catch (error) {
+      setError('Failed to authenticate. Please try again.');
+      toast.error('Authentication Error');
     }
   };
 
@@ -121,70 +158,6 @@ const Admin = () => {
     setPassword('');
     toast.success('Logged out successfully');
   };
-
-  // Mock team data
-  const [teams, setTeams] = useState<Team[]>([
-    {
-      id: 'NH-2024-001',
-      teamName: 'Code Crusaders',
-      institution: 'Tech University',
-      leadName: 'John Doe',
-      leadEmail: 'john@example.com',
-      memberCount: 3,
-      track: 'AI & Machine Learning',
-      status: 'pending',
-      registeredDate: '2024-12-15',
-      projectTitle: 'AI-Powered Study Assistant',
-    },
-    {
-      id: 'NH-2024-002',
-      teamName: 'Winter Wizards',
-      institution: 'Innovation College',
-      leadName: 'Jane Smith',
-      leadEmail: 'jane@example.com',
-      memberCount: 4,
-      track: 'Web3 & Blockchain',
-      status: 'approved',
-      registeredDate: '2024-12-14',
-      projectTitle: 'Decentralized Education Platform',
-    },
-    {
-      id: 'NH-2024-003',
-      teamName: 'Santa\'s Devs',
-      institution: 'State University',
-      leadName: 'Bob Johnson',
-      leadEmail: 'bob@example.com',
-      memberCount: 3,
-      track: 'Healthcare',
-      status: 'pending',
-      registeredDate: '2024-12-16',
-      projectTitle: 'Telemedicine Solution',
-    },
-    {
-      id: 'NH-2024-004',
-      teamName: 'Reindeer Coders',
-      institution: 'Engineering Institute',
-      leadName: 'Alice Williams',
-      leadEmail: 'alice@example.com',
-      memberCount: 2,
-      track: 'Sustainability',
-      status: 'rejected',
-      registeredDate: '2024-12-13',
-      projectTitle: 'Carbon Footprint Tracker',
-    },
-    {
-      id: 'NH-2024-005',
-      teamName: 'Festive Innovators',
-      institution: 'Design Academy',
-      leadName: 'Charlie Brown',
-      leadEmail: 'charlie@example.com',
-      memberCount: 4,
-      track: 'AI & Machine Learning',
-      status: 'approved',
-      registeredDate: '2024-12-15',
-      projectTitle: 'Smart City Analytics',
-    },
-  ]);
 
   const getStatusBadge = (status: TeamStatus) => {
     switch (status) {
@@ -197,32 +170,65 @@ const Admin = () => {
     }
   };
 
-  const handleStatusChange = (teamId: string, newStatus: TeamStatus) => {
-    setTeams(teams.map(team => 
-      team.id === teamId ? { ...team, status: newStatus } : team
-    ));
-    
-    if (newStatus === 'approved') playSuccessJingle();
-    
-    const statusMessages = {
-      approved: 'Team approved successfully!',
-      rejected: 'Team registration rejected.',
-      pending: 'Team status set to pending.',
-    };
-    
-    toast.success(statusMessages[newStatus], {
-      description: `Team ${teamId} has been updated.`,
-    });
-    
-    setShowDetailsDialog(false);
+  const handleStatusChange = async (docId: string, newStatus: TeamStatus) => {
+    try {
+      // Update status in Firestore
+      const result = await updateTeamStatus(docId, newStatus);
+      
+      if (!result.success) {
+        throw new Error(result.message);
+      }
+
+      // Find team for email
+      const team = teams.find(t => t.id === docId);
+      if (team) {
+        // Send status update email
+        try {
+          await fetch('http://localhost:8080/api/send-status-email', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              teamEmail: team.teamLeadEmail,
+              teamName: team.teamName,
+              teamId: team.teamId,
+              teamLeadName: team.teamLeadName,
+              status: newStatus,
+            }),
+          });
+        } catch (emailError) {
+          console.error('Email sending failed:', emailError);
+          // Don't fail the status update if email fails
+        }
+      }
+      
+      if (newStatus === 'approved') playSuccessJingle();
+      
+      const statusMessages = {
+        approved: 'Team approved successfully!',
+        rejected: 'Team registration rejected.',
+        pending: 'Team status set to pending.',
+      };
+      
+      toast.success(statusMessages[newStatus], {
+        description: `Team has been updated. Email sent to team lead.`,
+      });
+      
+      setShowDetailsDialog(false);
+    } catch (error: any) {
+      toast.error('Failed to update status', {
+        description: error.message || 'Please try again.',
+      });
+    }
   };
 
   const filteredTeams = teams.filter(team => {
     const matchesSearch = 
       team.teamName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      team.institution.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      team.leadName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      team.id.toLowerCase().includes(searchQuery.toLowerCase());
+      team.institutionName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      team.teamLeadName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      team.teamId.toLowerCase().includes(searchQuery.toLowerCase());
     
     const matchesStatus = statusFilter === 'all' || team.status === statusFilter;
     
@@ -236,7 +242,7 @@ const Admin = () => {
     rejected: teams.filter(t => t.status === 'rejected').length,
   };
 
-  const handleViewDetails = (team: Team) => {
+  const handleViewDetails = (team: (TeamData & { id: string })) => {
     setSelectedTeam(team);
     setShowDetailsDialog(true);
   };

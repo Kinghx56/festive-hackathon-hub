@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Mail, Lock, Eye, EyeOff, TreePine, Snowflake, Sparkles, Gift } from 'lucide-react';
+import { Mail, Phone, Eye, EyeOff, TreePine, Snowflake, Sparkles, Gift } from 'lucide-react';
 import Header from '@/components/Header';
 import Snowfall from '@/components/Snowfall';
 import Stars from '@/components/Stars';
@@ -16,10 +16,11 @@ import MusicPlayer from '@/components/MusicPlayer';
 import SnowGlobe from '@/components/SnowGlobe';
 import { playSuccessJingle } from '@/utils/sounds';
 import { toast } from 'sonner';
+import { getTeamByCredentials } from '@/services/firestore';
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  phone: z.string().min(10, 'Phone number must be at least 10 digits'),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -48,16 +49,34 @@ const Login = () => {
 
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
+    
+    try {
+      const result = await getTeamByCredentials(data.email, data.phone);
+      
+      if (!result.success || !result.team) {
+        throw new Error(result.message);
+      }
+
+      // Store team info in session storage
+      sessionStorage.setItem('teamId', result.team.teamId);
+      sessionStorage.setItem('teamEmail', result.team.teamLeadEmail);
+      sessionStorage.setItem('teamPhone', result.team.teamLeadPhone);
+      sessionStorage.setItem('teamData', JSON.stringify(result.team));
+
       playSuccessJingle();
       toast.success('Welcome back!', {
-        description: 'Successfully logged in to your dashboard.',
+        description: `Successfully logged in as ${result.team.teamName}`,
         icon: <TreePine className="w-5 h-5" />,
       });
+      
       navigate('/dashboard');
-    }, 1500);
+    } catch (error: any) {
+      toast.error(error.message || 'Login failed', {
+        description: 'Please check your credentials and try again.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -130,14 +149,14 @@ const Login = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="phone">Phone Number (Password)</Label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                     <Input
-                      id="password"
+                      id="phone"
                       type={showPassword ? 'text' : 'password'}
-                      placeholder="••••••••"
-                      {...register('password')}
+                      placeholder="Your registered phone number"
+                      {...register('phone')}
                       className="pl-10 pr-10 bg-muted border-border focus:border-christmas-gold"
                     />
                     <button
@@ -148,9 +167,12 @@ const Login = () => {
                       {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                     </button>
                   </div>
-                  {errors.password && (
-                    <p className="text-sm text-destructive">{errors.password.message}</p>
+                  {errors.phone && (
+                    <p className="text-sm text-destructive">{errors.phone.message}</p>
                   )}
+                  <p className="text-xs text-muted-foreground">
+                    Use the phone number you registered with
+                  </p>
                 </div>
 
                 <div className="flex items-center justify-between">

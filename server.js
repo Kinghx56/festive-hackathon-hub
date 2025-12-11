@@ -2,6 +2,7 @@ import express from 'express';
 import axios from 'axios';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { sendConfirmationEmail, sendStatusUpdateEmail } from './email-service.js';
 
 dotenv.config();
 
@@ -11,7 +12,7 @@ const PORT = process.env.PORT || 8080;
 // Middleware
 app.use(express.json());
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:8081', process.env.FRONTEND_URL].filter(Boolean),
+  origin: true, // Allow all origins for now
   credentials: true
 }));
 
@@ -65,17 +66,27 @@ app.post('/api/register', async (req, res) => {
       track: formData.projectTrack
     });
 
-    // Process registration (save to database, send email, etc.)
-    // ... your registration logic here ...
+    // NOTE: Firebase operations are handled on the frontend
+    // This endpoint is primarily for reCAPTCHA verification
+    // The actual team registration is done in the frontend using Firestore
 
-    // Example: Save to database
-    // await database.teams.create(formData);
-
-    // Example: Send confirmation email
-    // await sendEmail(formData.teamLeadEmail, 'Registration Confirmed');
-
-    // Generate team ID
+    // Generate team ID for response (actual ID generated in frontend)
     const teamId = 'NH-2025-' + Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+
+    // Send confirmation email
+    try {
+      console.log('📧 Attempting to send confirmation email...');
+      const emailResult = await sendConfirmationEmail(
+        formData.teamLeadEmail,
+        formData.teamName,
+        teamId,
+        formData.teamLeadName
+      );
+      console.log('📧 Email result:', emailResult);
+    } catch (emailError) {
+      console.error('⚠️ Email sending failed, but registration succeeded:');
+      console.error('Error details:', emailError);
+    }
 
     // Send success response
     return res.status(200).json({
@@ -97,6 +108,61 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
+// Admin password validation endpoint
+app.post('/api/admin/validate', (req, res) => {
+  try {
+    const { password } = req.body;
+    const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+
+    if (password === ADMIN_PASSWORD) {
+      console.log('✅ Admin login successful');
+      return res.status(200).json({
+        success: true,
+        message: 'Authentication successful',
+      });
+    } else {
+      console.log('❌ Admin login failed - incorrect password');
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid password',
+      });
+    }
+  } catch (error) {
+    console.error('💥 Admin auth error:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Authentication error',
+    });
+  }
+});
+
+// Send status update email endpoint
+app.post('/api/send-status-email', async (req, res) => {
+  try {
+    const { teamEmail, teamName, teamId, teamLeadName, status } = req.body;
+
+    if (!teamEmail || !teamName || !teamId || !teamLeadName || !status) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields',
+      });
+    }
+
+    await sendStatusUpdateEmail(teamEmail, teamName, teamId, teamLeadName, status);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Status update email sent successfully',
+    });
+  } catch (error) {
+    console.error('💥 Email error:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to send email',
+    });
+  }
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ 
@@ -104,6 +170,51 @@ app.get('/api/health', (req, res) => {
     message: 'NumrenoHacks API is running',
     timestamp: new Date().toISOString()
   });
+});
+
+// Test email endpoint
+app.post('/api/test-email', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email address is required'
+      });
+    }
+
+    console.log('📧 Testing email configuration...');
+    console.log('EMAIL_USER:', process.env.EMAIL_USER);
+    console.log('EMAIL_HOST:', process.env.EMAIL_HOST);
+    console.log('EMAIL_PORT:', process.env.EMAIL_PORT);
+    console.log('EMAIL_PASSWORD:', process.env.EMAIL_PASSWORD ? '***SET***' : 'NOT SET');
+
+    const result = await sendConfirmationEmail(
+      email,
+      'Test Team',
+      'TEST-001',
+      'Test User'
+    );
+
+    return res.json({
+      success: result.success,
+      message: result.message,
+      config: {
+        host: process.env.EMAIL_HOST,
+        port: process.env.EMAIL_PORT,
+        user: process.env.EMAIL_USER,
+        passwordSet: !!process.env.EMAIL_PASSWORD
+      }
+    });
+  } catch (error) {
+    console.error('❌ Test email error:', error);
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+      stack: error.stack
+    });
+  }
 });
 
 // Error handling middleware

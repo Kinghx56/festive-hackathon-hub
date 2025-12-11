@@ -30,6 +30,10 @@ dist-ssr
 config/secrets.json
 config/keys.json
 
+# Firebase config (contains API keys)
+src/config/firebase.ts
+firebase.ts
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useNavigate } from 'react-router-dom';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,7 +21,7 @@ import MusicPlayer from '@/components/MusicPlayer';
 import SnowGlobe from '@/components/SnowGlobe';
 import { playSuccessJingle } from '@/utils/sounds';
 import { toast } from 'sonner';
-import { useEffect } from 'react';
+import { registerTeam, checkDuplicateEntry } from '@/services/firestore';
 
 // Step schemas
 const humanVerifySchema = z.object({
@@ -121,7 +122,42 @@ const Register = () => {
     setFormData(prev => ({ ...prev, ...data }));
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
+    // Check for duplicate entries when moving from step 1 (Team Info)
+    if (currentStep === 1 && formData.teamLeadEmail && formData.teamLeadPhone) {
+      const duplicateCheck = await checkDuplicateEntry(
+        formData.teamLeadEmail,
+        formData.teamLeadPhone
+      );
+
+      if (duplicateCheck.isDuplicate) {
+        toast.error(duplicateCheck.message, {
+          duration: 5000,
+        });
+        return;
+      }
+    }
+
+    // Check for duplicate member emails when moving from step 2 (Members)
+    if (currentStep === 2 && formData.members) {
+      const memberEmails = formData.members
+        .map(m => m.email)
+        .filter(email => email && email.trim());
+      
+      const duplicateCheck = await checkDuplicateEntry(
+        formData.teamLeadEmail || '',
+        formData.teamLeadPhone || '',
+        memberEmails
+      );
+
+      if (duplicateCheck.isDuplicate) {
+        toast.error(duplicateCheck.message, {
+          duration: 5000,
+        });
+        return;
+      }
+    }
+
     if (currentStep < steps.length - 1) {
       setCurrentStep(prev => prev + 1);
     }
@@ -132,6 +168,8 @@ const Register = () => {
       setCurrentStep(prev => prev - 1);
     }
   };
+
+  const navigate = useNavigate();
 
   const handleSubmit = async () => {
     try {
@@ -149,8 +187,8 @@ const Register = () => {
         });
       });
 
-      // Send to your backend API at localhost:8080
-      const response = await fetch('http://localhost:8080/api/register', {
+      // Verify reCAPTCHA with backend
+      const recaptchaResponse = await fetch('http://localhost:8080/api/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -161,19 +199,50 @@ const Register = () => {
         }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Registration failed');
+      if (!recaptchaResponse.ok) {
+        const errorData = await recaptchaResponse.json();
+        throw new Error(errorData.message || 'reCAPTCHA verification failed');
       }
+
+      // Register team in Firebase
+      const result = await registerTeam({
+        teamName: formData.teamName!,
+        institutionName: formData.institutionName!,
+        numberOfMembers: formData.numberOfMembers!,
+        teamLeadName: formData.teamLeadName!,
+        teamLeadEmail: formData.teamLeadEmail!,
+        teamLeadPhone: formData.teamLeadPhone!,
+        problemStatementId: formData.problemStatementId!,
+        projectTitle: formData.projectTitle!,
+        projectDescription: formData.projectDescription!,
+        techStack: formData.techStack!,
+        members: formData.members!,
+      });
+
+      if (!result.success) {
+        throw new Error(result.message);
+      }
+
+      // Store team ID in session storage for dashboard access
+      sessionStorage.setItem('teamId', result.teamId!);
+      sessionStorage.setItem('teamEmail', formData.teamLeadEmail!);
+      sessionStorage.setItem('teamPhone', formData.teamLeadPhone!);
 
       setShowConfetti(true);
       playSuccessJingle();
       toast.success('Registration submitted successfully!', {
-        description: 'Check your email for confirmation.',
+        description: `Your Team ID: ${result.teamId}. Check your email for details.`,
         icon: <TreePine className="w-5 h-5" />,
+        duration: 6000,
       });
-    } catch (error) {
-      toast.error('Registration failed. Please try again.');
+
+      // Redirect to dashboard after 3 seconds
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 3000);
+
+    } catch (error: any) {
+      toast.error(error.message || 'Registration failed. Please try again.');
       console.error('Registration error:', error);
     }
   };

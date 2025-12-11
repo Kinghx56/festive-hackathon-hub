@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -17,7 +17,8 @@ import {
   ExternalLink,
   ChevronRight,
   TreePine,
-  Crown
+  Crown,
+  Loader2
 } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -28,10 +29,17 @@ import MusicPlayer from '@/components/MusicPlayer';
 import SnowGlobe from '@/components/SnowGlobe';
 import { playSuccessJingle } from '@/utils/sounds';
 import CountdownTimer from '@/components/CountdownTimer';
+import { TeamData } from '@/services/firestore';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { db } from '@/config/firebase';
+import { toast } from 'sonner';
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [snowGlobeActive, setSnowGlobeActive] = useState(false);
+  const [teamData, setTeamData] = useState<TeamData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -40,25 +48,48 @@ const Dashboard = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Mock data
-  const teamData = {
-    id: 'NH-2024-001',
-    name: 'Code Crusaders',
-    status: 'approved' as const,
-    institution: 'Tech University',
-    registeredAt: '2024-12-15',
-    members: [
-      { name: 'John Doe', email: 'john@example.com', role: 'Full Stack Developer' },
-      { name: 'Jane Smith', email: 'jane@example.com', role: 'ML Engineer' },
-      { name: 'Bob Johnson', email: 'bob@example.com', role: 'Frontend Developer' },
-    ],
-    project: {
-      title: 'AI-Powered Study Assistant',
-      track: 'AI & Machine Learning',
-      techStack: 'React + Python',
-      description: 'An intelligent study companion that uses AI to help students learn more effectively.',
-    },
-  };
+  // Fetch team data from Firebase
+  useEffect(() => {
+    const teamEmail = sessionStorage.getItem('teamEmail');
+    const teamPhone = sessionStorage.getItem('teamPhone');
+
+    if (!teamEmail || !teamPhone) {
+      toast.error('Please login first');
+      navigate('/login');
+      return;
+    }
+
+    // Real-time listener for team data
+    const teamsRef = collection(db, 'teams');
+    const q = query(
+      teamsRef,
+      where('teamLeadEmail', '==', teamEmail),
+      where('teamLeadPhone', '==', teamPhone)
+    );
+
+    const unsubscribe = onSnapshot(
+      q,
+      (querySnapshot) => {
+        if (querySnapshot.empty) {
+          toast.error('Team not found');
+          navigate('/login');
+          return;
+        }
+
+        const teamDoc = querySnapshot.docs[0];
+        const team = { id: teamDoc.id, ...teamDoc.data() } as TeamData & { id: string };
+        setTeamData(team);
+        setIsLoading(false);
+      },
+      (error) => {
+        console.error('Error fetching team data:', error);
+        toast.error('Failed to load team data');
+        setIsLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [navigate]);
 
   const announcements = [
     { id: 1, title: 'Workshop: Building with AI APIs', date: 'Dec 18', isNew: true },
@@ -96,6 +127,39 @@ const Dashboard = () => {
     }
   };
 
+  const handleLogout = () => {
+    sessionStorage.clear();
+    toast.success('Logged out successfully');
+    navigate('/login');
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background relative flex items-center justify-center">
+        <Snowfall />
+        <div className="text-center">
+          <Loader2 className="w-16 h-16 animate-spin text-christmas-red mx-auto mb-4" />
+          <p className="text-lg text-muted-foreground">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!teamData) {
+    return (
+      <div className="min-h-screen bg-background relative flex items-center justify-center">
+        <Snowfall />
+        <div className="text-center">
+          <XCircle className="w-16 h-16 text-destructive mx-auto mb-4" />
+          <p className="text-lg text-muted-foreground">Team data not found</p>
+          <Button onClick={() => navigate('/login')} className="mt-4">
+            Go to Login
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background relative">
       <Snowfall />
@@ -116,11 +180,11 @@ const Dashboard = () => {
               <div>
                 <h1 className="text-2xl md:text-3xl font-display font-bold mb-2">
                   <span className="flex items-center gap-2">
-                    Ho Ho Ho, <span className="text-christmas-red">{teamData.name}</span>! <TreePine className="w-6 h-6 text-christmas-green" />
+                    Ho Ho Ho, <span className="text-christmas-red">{teamData.teamName}</span>! <TreePine className="w-6 h-6 text-christmas-green" />
                   </span>
                 </h1>
                 <p className="text-muted-foreground">
-                  Team ID: <span className="text-christmas-gold font-mono">{teamData.id}</span>
+                  Team ID: <span className="text-christmas-gold font-mono">{teamData.teamId}</span>
                 </p>
               </div>
               <div className="flex items-center gap-3">
@@ -260,7 +324,7 @@ const Dashboard = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <p className="text-muted-foreground text-sm">Institution</p>
-                    <p className="font-medium">{teamData.institution}</p>
+                    <p className="font-medium">{teamData.institutionName}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground text-sm">Registered On</p>
@@ -281,24 +345,24 @@ const Dashboard = () => {
                   <div>
                     <p className="text-muted-foreground text-sm mb-1">Project Title</p>
                     <h4 className="text-xl font-display font-semibold text-christmas-gold">
-                      {teamData.project.title}
+                      {teamData.projectTitle}
                     </h4>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <p className="text-muted-foreground text-sm mb-1">Track</p>
-                      <p className="font-medium">{teamData.project.track}</p>
+                      <p className="font-medium">{teamData.problemStatementId}</p>
                     </div>
                     <div>
                       <p className="text-muted-foreground text-sm mb-1">Tech Stack</p>
-                      <p className="font-medium">{teamData.project.techStack}</p>
+                      <p className="font-medium">{teamData.techStack}</p>
                     </div>
                   </div>
 
                   <div>
                     <p className="text-muted-foreground text-sm mb-1">Description</p>
-                    <p className="text-foreground">{teamData.project.description}</p>
+                    <p className="text-foreground">{teamData.projectDescription}</p>
                   </div>
                 </div>
               </div>
@@ -339,7 +403,7 @@ const Dashboard = () => {
 
               <div className="glass-card p-6 border-destructive/50">
                 <h3 className="font-display font-semibold text-lg mb-4 text-destructive">Danger Zone</h3>
-                <Button variant="destructive" className="w-full">
+                <Button variant="destructive" className="w-full" onClick={handleLogout}>
                   <LogOut className="w-4 h-4 mr-2" />
                   Logout
                 </Button>
