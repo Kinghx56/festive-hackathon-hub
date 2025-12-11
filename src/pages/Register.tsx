@@ -24,7 +24,7 @@ import { useEffect } from 'react';
 
 // Step schemas
 const humanVerifySchema = z.object({
-  isHuman: z.boolean().refine(val => val === true, 'Please verify you are human'),
+  recaptchaVerified: z.boolean().optional(),
 });
 
 const teamInfoSchema = z.object({
@@ -44,7 +44,7 @@ const projectSchema = z.object({
 });
 
 type FormData = {
-  isHuman: boolean;
+  recaptchaVerified: boolean;
   teamName: string;
   institutionName: string;
   numberOfMembers: string;
@@ -64,10 +64,12 @@ const Register = () => {
   const [formData, setFormData] = useState<Partial<FormData>>({
     numberOfMembers: '2',
     members: [{ name: '', email: '', role: '' }, { name: '', email: '', role: '' }],
+    recaptchaVerified: false,
   });
   const [uploadedFiles, setUploadedFiles] = useState<{ [key: string]: File | null }>({});
   const [showConfetti, setShowConfetti] = useState(false);
   const [snowGlobeActive, setSnowGlobeActive] = useState(false);
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -75,6 +77,19 @@ const Register = () => {
     }, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  // reCAPTCHA v3 - automatically verify on first step
+  useEffect(() => {
+    if (currentStep === 0 && typeof (window as any).grecaptcha !== 'undefined') {
+      (window as any).grecaptcha.ready(() => {
+        (window as any).grecaptcha.execute('6Ld_kigsAAAAAFxsuU2dXJMs0r5nTEMe3P05WFEj', { action: 'verify' })
+          .then((token: string) => {
+            setRecaptchaToken(token);
+            updateFormData({ recaptchaVerified: true });
+          });
+      });
+    }
+  }, [currentStep]);
 
   const steps = [
     { title: 'Verify', icon: CheckCircle, description: 'Human check' },
@@ -118,15 +133,49 @@ const Register = () => {
     }
   };
 
-  const handleSubmit = () => {
-    setShowConfetti(true);
-    playSuccessJingle();
-    toast.success('Registration submitted successfully!', {
-      description: 'Check your email for confirmation.',
-      icon: <TreePine className="w-5 h-5" />,
-    });
-    // Here you would send data to API
-    console.log('Form data:', formData);
+  const handleSubmit = async () => {
+    try {
+      // Generate fresh reCAPTCHA v3 token for submit action
+      const token = await new Promise<string>((resolve, reject) => {
+        if (typeof (window as any).grecaptcha === 'undefined') {
+          reject('reCAPTCHA not loaded');
+          return;
+        }
+        
+        (window as any).grecaptcha.ready(() => {
+          (window as any).grecaptcha.execute('6Ld_kigsAAAAAFxsuU2dXJMs0r5nTEMe3P05WFEj', { action: 'submit' })
+            .then(resolve)
+            .catch(reject);
+        });
+      });
+
+      // Send to your backend API at localhost:8080
+      const response = await fetch('http://localhost:8080/api/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...formData,
+          recaptchaToken: token,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Registration failed');
+      }
+
+      setShowConfetti(true);
+      playSuccessJingle();
+      toast.success('Registration submitted successfully!', {
+        description: 'Check your email for confirmation.',
+        icon: <TreePine className="w-5 h-5" />,
+      });
+    } catch (error) {
+      toast.error('Registration failed. Please try again.');
+      console.error('Registration error:', error);
+    }
   };
 
   const handleFileUpload = (key: string, file: File | null) => {
@@ -140,22 +189,35 @@ const Register = () => {
           <div className="text-center space-y-8">
             <TreePine className="w-20 h-20 mx-auto animate-bounce-gentle text-christmas-green" />
             <h3 className="text-2xl font-display font-semibold">
-              Before we begin...
+              Welcome to NumrenoHacks!
             </h3>
             <p className="text-muted-foreground">
-              Please verify that you're a human (and not a sneaky elf!)
+              Let's get your team registered for the Christmas Hackathon 2024
             </p>
-            <div className="glass-card p-6 max-w-sm mx-auto">
-              <div className="flex items-center gap-4">
-                <Checkbox
-                  id="human"
-                  checked={formData.isHuman}
-                  onCheckedChange={(checked) => updateFormData({ isHuman: checked as boolean })}
-                  className="border-christmas-green data-[state=checked]:bg-christmas-green"
-                />
-                <Label htmlFor="human" className="text-lg cursor-pointer">
-                  I'm not a robot (or an elf)
-                </Label>
+            <div className="glass-card p-6 max-w-md mx-auto">
+              <div className="flex flex-col items-center gap-4">
+                {recaptchaToken ? (
+                  <div className="flex items-center gap-2 text-christmas-green">
+                    <CheckCircle className="w-5 h-5" />
+                    <span className="text-sm font-medium">Security verified by Google reCAPTCHA</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-christmas-green"></div>
+                    <span className="text-sm">Verifying security...</span>
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground mt-2">
+                  This site is protected by reCAPTCHA and the Google{' '}
+                  <a href="https://policies.google.com/privacy" className="underline" target="_blank" rel="noopener noreferrer">
+                    Privacy Policy
+                  </a>{' '}
+                  and{' '}
+                  <a href="https://policies.google.com/terms" className="underline" target="_blank" rel="noopener noreferrer">
+                    Terms of Service
+                  </a>{' '}
+                  apply.
+                </p>
               </div>
             </div>
           </div>
@@ -478,7 +540,7 @@ const Register = () => {
   const canProceed = () => {
     switch (currentStep) {
       case 0:
-        return formData.isHuman;
+        return formData.recaptchaVerified && recaptchaToken !== null;
       case 1:
         return formData.teamName && formData.institutionName && formData.teamLeadName && formData.teamLeadEmail && formData.teamLeadPhone;
       case 2:
