@@ -22,6 +22,7 @@ import SnowGlobe from '@/components/SnowGlobe';
 import { playSuccessJingle } from '@/utils/sounds';
 import { toast } from 'sonner';
 import { registerTeam, checkDuplicateEntry } from '@/services/firestore';
+import { processIDCard, calculateNameMatch } from '@/utils/ocr';
 
 // Step schemas
 const humanVerifySchema = z.object({
@@ -71,6 +72,13 @@ const Register = () => {
   const [showConfetti, setShowConfetti] = useState(false);
   const [snowGlobeActive, setSnowGlobeActive] = useState(false);
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+  const [ocrProcessing, setOcrProcessing] = useState(false);
+  const [ocrResult, setOcrResult] = useState<{
+    confidence: number;
+    extractedName?: string;
+    nameMatch?: number;
+    needsUpload: boolean;
+  } | null>(null);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -204,6 +212,43 @@ const Register = () => {
         throw new Error(errorData.message || 'reCAPTCHA verification failed');
       }
 
+      // Upload ID card if needed (low confidence)
+      let idCardPath: string | undefined;
+      if (ocrResult?.needsUpload && uploadedFiles.leadId) {
+        try {
+          const formDataUpload = new FormData();
+          formDataUpload.append('idCard', uploadedFiles.leadId);
+          
+          const uploadResponse = await fetch('http://localhost:8080/api/upload-id', {
+            method: 'POST',
+            body: formDataUpload,
+          });
+
+          const uploadData = await uploadResponse.json();
+          if (uploadData.success) {
+            idCardPath = uploadData.filePath;
+            console.log('✅ ID card uploaded for manual review');
+          }
+        } catch (uploadError) {
+          console.error('Failed to upload ID card:', uploadError);
+          // Continue with registration even if upload fails
+        }
+      }
+
+      // Prepare ID verification data
+      const idVerificationData = ocrResult ? {
+        status: ocrResult.needsUpload ? 'pending' : 'verified',
+        confidence: ocrResult.confidence,
+        extractedData: {
+          name: ocrResult.extractedName || null,
+        },
+        idCardPath: idCardPath || null,
+      } : undefined;
+
+      console.log('💾 Saving to Firebase:');
+      console.log('  - Team Lead Name:', formData.teamLeadName);
+      console.log('  - ID Verification Data:', JSON.stringify(idVerificationData, null, 2));
+
       // Register team in Firebase
       const result = await registerTeam({
         teamName: formData.teamName!,
@@ -217,6 +262,7 @@ const Register = () => {
         projectDescription: formData.projectDescription!,
         techStack: formData.techStack!,
         members: formData.members!,
+        idVerification: idVerificationData,
       });
 
       if (!result.success) {
@@ -247,8 +293,76 @@ const Register = () => {
     }
   };
 
-  const handleFileUpload = (key: string, file: File | null) => {
+  const handleFileUpload = async (key: string, file: File | null) => {
     setUploadedFiles(prev => ({ ...prev, [key]: file }));
+    
+    // Process ID card with OCR if it's the lead ID
+    if (key === 'leadId' && file) {
+      setOcrProcessing(true);
+      setOcrResult(null);
+      
+      toast.info('Processing ID card...', {
+        description: 'Using OCR to extract information'
+      });
+
+      try {
+        const result = await processIDCard(file);
+        
+        if (!result.success) {
+          toast.error('Failed to process ID card', {
+            description: result.error || 'Please try uploading a clearer image'
+          });
+          setOcrProcessing(false);
+          return;
+        }
+
+        // Calculate name match if we have both
+        let nameMatch = 0;
+        if (result.name && formData.teamLeadName) {
+          nameMatch = calculateNameMatch(result.name, formData.teamLeadName);
+          console.log('🔍 Name Comparison:');
+          console.log('  - Form Name:', formData.teamLeadName);
+          console.log('  - Extracted Name:', result.name);
+          console.log('  - Match Score:', nameMatch, '%');
+        } else {
+          console.log('⚠️ Cannot compare names:');
+          console.log('  - Form Name:', formData.teamLeadName);
+          console.log('  - Extracted Name:', result.name);
+        }
+
+        const needsUpload = result.confidence < 80 || nameMatch < 70;
+
+        setOcrResult({
+          confidence: result.confidence,
+          extractedName: result.name,
+          nameMatch: nameMatch,
+          needsUpload: needsUpload
+        });
+
+        if (needsUpload) {
+          toast.warning('ID card needs manual verification', {
+            description: `Confidence: ${result.confidence.toFixed(0)}%, Name Match: ${nameMatch.toFixed(0)}%`,
+            duration: 5000
+          });
+        } else {
+          toast.success('ID card verified automatically!', {
+            description: `Confidence: ${result.confidence.toFixed(0)}%, Name Match: ${nameMatch.toFixed(0)}%`,
+            duration: 5000
+          });
+        }
+
+        console.log('📊 OCR Result:', result);
+        console.log('📊 Confidence:', result.confidence, '%');
+        console.log('📊 Name match:', nameMatch, '%');
+        console.log('📊 Needs upload:', needsUpload);
+
+      } catch (error) {
+        console.error('OCR processing error:', error);
+        toast.error('Failed to process ID card');
+      } finally {
+        setOcrProcessing(false);
+      }
+    }
   };
 
   const renderStep = () => {
@@ -389,6 +503,65 @@ const Register = () => {
               maxSize={5}
               existingFile={uploadedFiles.leadId}
             />
+
+            {/* OCR Processing Status */}
+            {ocrProcessing && (
+              <div className="glass-card p-4 border-christmas-gold">
+                <div className="flex items-center gap-3">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-christmas-gold"></div>
+                  <div>
+                    <p className="font-medium text-christmas-gold">Processing ID Card...</p>
+                    <p className="text-sm text-muted-foreground">Extracting information using OCR</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* OCR Result */}
+            {ocrResult && !ocrProcessing && (
+              <div className={`glass-card p-4 ${ocrResult.needsUpload ? 'border-christmas-gold' : 'border-christmas-green'}`}>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold">ID Verification Result</h4>
+                    <span className={`text-sm font-medium ${ocrResult.needsUpload ? 'text-christmas-gold' : 'text-christmas-green'}`}>
+                      {ocrResult.needsUpload ? 'Manual Review Required' : 'Auto-Verified'}
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">OCR Confidence:</span>
+                      <span className="font-medium">{ocrResult.confidence.toFixed(0)}%</span>
+                    </div>
+                    
+                    {ocrResult.extractedName && (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Extracted Name:</span>
+                          <span className="font-medium">{ocrResult.extractedName}</span>
+                        </div>
+                        {ocrResult.nameMatch !== undefined && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Name Match:</span>
+                            <span className="font-medium">{ocrResult.nameMatch.toFixed(0)}%</span>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  {ocrResult.needsUpload ? (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      📋 Your ID card will be uploaded for manual verification by our team.
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      ✅ Your ID card has been automatically verified with high confidence.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         );
 

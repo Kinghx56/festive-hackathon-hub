@@ -28,6 +28,22 @@ export interface TeamData {
   status: 'pending' | 'approved' | 'rejected';
   createdAt: Timestamp;
   updatedAt: Timestamp;
+  // ID Card Verification
+  idVerification?: {
+    status: 'pending' | 'verified' | 'rejected' | 'not-required';
+    confidence: number;
+    extractedData?: {
+      name?: string;
+      idNumber?: string;
+      institution?: string;
+      fullText?: string;
+    };
+    idCardPath?: string; // Server file path
+    uploadedAt?: Timestamp;
+    verifiedAt?: Timestamp;
+    verifiedBy?: string;
+    rejectionReason?: string;
+  };
 }
 
 // Generate unique Team ID
@@ -119,6 +135,12 @@ export const registerTeam = async (
   formData: Omit<TeamData, 'teamId' | 'status' | 'createdAt' | 'updatedAt'>
 ): Promise<{ success: boolean; teamId?: string; message: string }> => {
   try {
+    console.log('🔥 Firestore registerTeam - Received form data:', {
+      teamLeadName: formData.teamLeadName,
+      hasIdVerification: !!formData.idVerification,
+      idVerificationRaw: formData.idVerification,
+    });
+
     // Extract member emails for duplicate check
     const memberEmails = formData.members
       .map(m => m.email)
@@ -142,10 +164,7 @@ export const registerTeam = async (
     const teamId = await generateTeamId();
 
     // Prepare team data
-    const teamData: Omit<TeamData, 'createdAt' | 'updatedAt'> & {
-      createdAt: any;
-      updatedAt: any;
-    } = {
+    const teamData: any = {
       ...formData,
       teamId,
       status: 'pending',
@@ -153,9 +172,46 @@ export const registerTeam = async (
       updatedAt: serverTimestamp(),
     };
 
+    console.log('📦 Before cleanup - idVerification:', JSON.stringify(teamData.idVerification, null, 2));
+
+    // Clean up idVerification data - remove undefined values
+    if (teamData.idVerification) {
+      // Remove undefined fields from extractedData
+      if (teamData.idVerification.extractedData) {
+        const cleanedData: any = {};
+        Object.keys(teamData.idVerification.extractedData).forEach(key => {
+          const value = teamData.idVerification.extractedData[key];
+          if (value !== undefined && value !== null) {
+            cleanedData[key] = value;
+          }
+        });
+        
+        // Only keep extractedData if it has any fields
+        if (Object.keys(cleanedData).length > 0) {
+          teamData.idVerification.extractedData = cleanedData;
+        } else {
+          delete teamData.idVerification.extractedData;
+        }
+      }
+      
+      // Remove undefined fields from idVerification
+      Object.keys(teamData.idVerification).forEach(key => {
+        if (teamData.idVerification[key] === undefined) {
+          delete teamData.idVerification[key];
+        }
+      });
+    }
+
+    console.log('✨ After cleanup - Final data to Firestore:', {
+      hasIdVerification: !!teamData.idVerification,
+      idVerification: JSON.stringify(teamData.idVerification, null, 2),
+    });
+
     // Add to Firestore
     const teamsRef = collection(db, 'teams');
     await addDoc(teamsRef, teamData);
+
+    console.log('✅ Successfully written to Firestore with team ID:', teamId);
 
     return {
       success: true,
@@ -259,6 +315,36 @@ export const updateTeamStatus = async (
     return {
       success: false,
       message: 'Failed to update team status.',
+    };
+  }
+};
+
+// Update ID verification status
+export const updateIDVerificationStatus = async (
+  teamDocId: string,
+  status: 'verified' | 'rejected',
+  verifiedBy: string,
+  rejectionReason?: string
+): Promise<{ success: boolean; message: string }> => {
+  try {
+    const teamRef = doc(db, 'teams', teamDocId);
+    await updateDoc(teamRef, {
+      'idVerification.status': status,
+      'idVerification.verifiedAt': serverTimestamp(),
+      'idVerification.verifiedBy': verifiedBy,
+      'idVerification.rejectionReason': rejectionReason || null,
+      updatedAt: serverTimestamp(),
+    });
+
+    return {
+      success: true,
+      message: `ID verification ${status} successfully!`,
+    };
+  } catch (error) {
+    console.error('Error updating ID verification:', error);
+    return {
+      success: false,
+      message: 'Failed to update ID verification status.',
     };
   }
 };

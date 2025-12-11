@@ -34,6 +34,13 @@ config/keys.json
 src/config/firebase.ts
 firebase.ts
 
+# Uploaded files (ID cards - sensitive data)
+uploads/
+*.jpg
+*.jpeg
+*.png
+*.pdf
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -2,12 +2,55 @@ import express from 'express';
 import axios from 'axios';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 import { sendConfirmationEmail, sendStatusUpdateEmail } from './email-service.js';
 
 dotenv.config();
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
 const PORT = process.env.PORT || 8080;
+
+// Create uploads directory if it doesn't exist
+const uploadsDir = path.join(__dirname, 'uploads', 'id-cards');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+  console.log('📁 Created uploads directory:', uploadsDir);
+}
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'id-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|pdf/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    
+    if (extname && mimetype) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only .jpg, .jpeg, .png, and .pdf files are allowed!'));
+    }
+  }
+});
 
 // Middleware
 app.use(express.json());
@@ -15,6 +58,9 @@ app.use(cors({
   origin: true, // Allow all origins for now
   credentials: true
 }));
+
+// Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Your reCAPTCHA Secret Key
 const RECAPTCHA_SECRET_KEY = process.env.RECAPTCHA_SECRET_KEY || 'YOUR_SECRET_KEY_HERE';
@@ -159,6 +205,64 @@ app.post('/api/send-status-email', async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to send email',
+    });
+  }
+});
+
+// Upload ID card endpoint
+app.post('/api/upload-id', upload.single('idCard'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded'
+      });
+    }
+
+    const filePath = `/uploads/id-cards/${req.file.filename}`;
+    
+    console.log('✅ ID card uploaded:', req.file.filename);
+    
+    return res.status(200).json({
+      success: true,
+      message: 'ID card uploaded successfully',
+      filePath: filePath,
+      filename: req.file.filename
+    });
+  } catch (error) {
+    console.error('❌ Upload error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to upload file'
+    });
+  }
+});
+
+// Delete ID card endpoint
+app.delete('/api/delete-id/:filename', (req, res) => {
+  try {
+    const { filename } = req.params;
+    const filePath = path.join(uploadsDir, filename);
+    
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+      console.log('🗑️ ID card deleted:', filename);
+      
+      return res.status(200).json({
+        success: true,
+        message: 'ID card deleted successfully'
+      });
+    } else {
+      return res.status(404).json({
+        success: false,
+        message: 'File not found'
+      });
+    }
+  } catch (error) {
+    console.error('❌ Delete error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to delete file'
     });
   }
 });

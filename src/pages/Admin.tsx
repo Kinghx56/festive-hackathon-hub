@@ -45,7 +45,9 @@ import {
   Mail,
   Lock,
   LogOut,
-  Loader2
+  Loader2,
+  FileCheck,
+  AlertTriangle
 } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -56,7 +58,7 @@ import MusicPlayer from '@/components/MusicPlayer';
 import SnowGlobe from '@/components/SnowGlobe';
 import { playSuccessJingle } from '@/utils/sounds';
 import { toast } from 'sonner';
-import { getAllTeams, updateTeamStatus, TeamData } from '@/services/firestore';
+import { getAllTeams, updateTeamStatus, updateIDVerificationStatus, TeamData } from '@/services/firestore';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 
@@ -412,6 +414,18 @@ const Admin = () => {
                   Registrations
                 </TabsTrigger>
                 <TabsTrigger 
+                  value="verification" 
+                  className="data-[state=active]:bg-christmas-red data-[state=active]:text-white"
+                >
+                  <FileCheck className="w-4 h-4 mr-2" />
+                  ID Verification
+                  {teams.filter(t => t.idVerification?.status === 'pending').length > 0 && (
+                    <Badge className="ml-2 bg-christmas-gold text-white">
+                      {teams.filter(t => t.idVerification?.status === 'pending').length}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger 
                   value="analytics" 
                   className="data-[state=active]:bg-christmas-red data-[state=active]:text-white"
                 >
@@ -506,6 +520,134 @@ const Admin = () => {
                     <p className="text-muted-foreground">No teams found matching your criteria.</p>
                   </div>
                 )}
+              </TabsContent>
+
+              {/* ID Verification Tab */}
+              <TabsContent value="verification" className="space-y-4">
+                <Card>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Team</TableHead>
+                        <TableHead>Lead Name</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Confidence</TableHead>
+                        <TableHead>Extracted Data</TableHead>
+                        <TableHead>ID Card</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {teams
+                        .filter(team => team.idVerification)
+                        .sort((a, b) => {
+                          const statusOrder = { pending: 0, verified: 1, rejected: 2 };
+                          return (statusOrder[a.idVerification?.status || 'pending'] || 0) - 
+                                 (statusOrder[b.idVerification?.status || 'pending'] || 0);
+                        })
+                        .map((team) => (
+                          <TableRow key={team.id}>
+                            <TableCell>
+                              <div>
+                                <p className="font-medium">{team.teamName}</p>
+                                <p className="text-xs text-muted-foreground">{team.teamId}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell>{team.teamLeadName}</TableCell>
+                            <TableCell>
+                              {team.idVerification?.status === 'pending' && (
+                                <Badge className="bg-christmas-gold/20 text-christmas-gold border-christmas-gold">
+                                  <Clock className="w-3 h-3 mr-1" />
+                                  Pending
+                                </Badge>
+                              )}
+                              {team.idVerification?.status === 'verified' && (
+                                <Badge className="bg-christmas-green/20 text-christmas-green border-christmas-green">
+                                  <CheckCircle className="w-3 h-3 mr-1" />
+                                  Verified
+                                </Badge>
+                              )}
+                              {team.idVerification?.status === 'rejected' && (
+                                <Badge variant="destructive">
+                                  <XCircle className="w-3 h-3 mr-1" />
+                                  Rejected
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <span>{team.idVerification?.confidence.toFixed(0)}%</span>
+                                {(team.idVerification?.confidence || 0) < 80 && (
+                                  <AlertTriangle className="w-4 h-4 text-christmas-gold" />
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {team.idVerification?.extractedData?.name && (
+                                <div className="text-sm">
+                                  <p className="font-medium">{team.idVerification.extractedData.name}</p>
+                                  {team.idVerification.extractedData.idNumber && (
+                                    <p className="text-xs text-muted-foreground">
+                                      ID: {team.idVerification.extractedData.idNumber}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {team.idVerification?.idCardPath ? (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => window.open(`http://localhost:8080${team.idVerification?.idCardPath}`, '_blank')}
+                                >
+                                  <Eye className="w-4 h-4 mr-1" />
+                                  View
+                                </Button>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">Auto-verified</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {team.idVerification?.status === 'pending' && (
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    className="bg-christmas-green hover:bg-christmas-green/80"
+                                    onClick={async () => {
+                                      const result = await updateIDVerificationStatus(team.id, 'verified', 'admin');
+                                      if (result.success) {
+                                        toast.success('ID verified successfully');
+                                        playSuccessJingle();
+                                      } else {
+                                        toast.error(result.message);
+                                      }
+                                    }}
+                                  >
+                                    <CheckCircle className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={async () => {
+                                      const result = await updateIDVerificationStatus(team.id, 'rejected', 'admin', 'ID card verification failed');
+                                      if (result.success) {
+                                        toast.success('ID rejected');
+                                      } else {
+                                        toast.error(result.message);
+                                      }
+                                    }}
+                                  >
+                                    <XCircle className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                    </TableBody>
+                  </Table>
+                </Card>
               </TabsContent>
 
               <TabsContent value="analytics" className="space-y-4">
