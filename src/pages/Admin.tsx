@@ -47,7 +47,8 @@ import {
   LogOut,
   Loader2,
   FileCheck,
-  AlertTriangle
+  AlertTriangle,
+  Send
 } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -58,7 +59,7 @@ import MusicPlayer from '@/components/MusicPlayer';
 import SnowGlobe from '@/components/SnowGlobe';
 import { playSuccessJingle } from '@/utils/sounds';
 import { toast } from 'sonner';
-import { getAllTeams, updateTeamStatus, updateIDVerificationStatus, TeamData } from '@/services/firestore';
+import { getAllTeams, updateTeamStatus, updateIDVerificationStatus, TeamData, getEscalatedQueries, respondToEscalatedQuery, ChatMessage } from '@/services/firestore';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 
@@ -76,6 +77,9 @@ const Admin = () => {
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [teams, setTeams] = useState<(TeamData & { id: string })[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [escalatedQueries, setEscalatedQueries] = useState<(ChatMessage & { id: string })[]>([]);
+  const [selectedQuery, setSelectedQuery] = useState<(ChatMessage & { id: string }) | null>(null);
+  const [adminResponse, setAdminResponse] = useState('');
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -120,6 +124,24 @@ const Admin = () => {
     return () => unsubscribe();
   }, [isAuthenticated]);
 
+  // Load escalated queries
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const loadEscalatedQueries = async () => {
+      const result = await getEscalatedQueries();
+      if (result.success) {
+        setEscalatedQueries(result.messages as any);
+      }
+    };
+
+    loadEscalatedQueries();
+    
+    // Refresh every 30 seconds
+    const interval = setInterval(loadEscalatedQueries, 30000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -160,6 +182,59 @@ const Admin = () => {
     setPassword('');
     toast.success('Logged out successfully');
   };
+
+  // Load escalated queries
+  const loadEscalatedQueries = async () => {
+    try {
+      const result = await getEscalatedQueries();
+      if (result.success) {
+        setEscalatedQueries(result.messages as any);
+      }
+    } catch (error) {
+      console.error('Failed to load escalated queries:', error);
+      toast.error('Failed to load support queries');
+    }
+  };
+
+  // Handle admin response to escalated query
+  const handleSendResponse = async () => {
+    if (!selectedQuery || !adminResponse.trim()) return;
+
+    try {
+      const result = await respondToEscalatedQuery(
+        selectedQuery.messageId,
+        adminResponse.trim(),
+        'Admin'
+      );
+
+      if (result.success) {
+        toast.success('Response sent successfully!');
+        setAdminResponse('');
+        setSelectedQuery(null);
+        loadEscalatedQueries();
+      } else {
+        toast.error(result.message);
+      }
+    } catch (error) {
+      console.error('Failed to send response:', error);
+      toast.error('Failed to send response');
+    }
+  };
+
+  // Load escalated queries when tab changes
+  useEffect(() => {
+    if (isAuthenticated && activeTab === 'support') {
+      loadEscalatedQueries();
+      
+      // Set up real-time listener for escalated queries
+      const messagesRef = collection(db, 'chatMessages');
+      const unsubscribe = onSnapshot(messagesRef, () => {
+        loadEscalatedQueries();
+      });
+
+      return () => unsubscribe();
+    }
+  }, [isAuthenticated, activeTab]);
 
   const getStatusBadge = (status: TeamStatus) => {
     switch (status) {
@@ -432,6 +507,18 @@ const Admin = () => {
                   <BarChart className="w-4 h-4 mr-2" />
                   Analytics
                 </TabsTrigger>
+                <TabsTrigger 
+                  value="support" 
+                  className="data-[state=active]:bg-christmas-red data-[state=active]:text-white"
+                >
+                  <Mail className="w-4 h-4 mr-2" />
+                  Support Queries
+                  {escalatedQueries.filter(q => !q.adminResponse).length > 0 && (
+                    <Badge className="ml-2 bg-christmas-gold text-white">
+                      {escalatedQueries.filter(q => !q.adminResponse).length}
+                    </Badge>
+                  )}
+                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="registrations" className="space-y-4">
@@ -658,6 +745,122 @@ const Admin = () => {
                     Detailed analytics and insights coming soon!
                   </p>
                 </div>
+              </TabsContent>
+
+              {/* Support Queries Tab */}
+              <TabsContent value="support" className="space-y-4">
+                <div className="mb-4">
+                  <h3 className="text-lg font-semibold mb-2">Escalated Queries</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Queries that require human intervention from the chatbot
+                  </p>
+                </div>
+
+                {isLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-christmas-red" />
+                  </div>
+                ) : escalatedQueries.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Mail className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-xl font-display font-bold mb-2">No Escalated Queries</h3>
+                    <p className="text-muted-foreground">
+                      All queries are being handled by the AI assistant
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid gap-4">
+                    {escalatedQueries.map((query) => (
+                      <Card key={query.messageId} className="p-4">
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <h4 className="font-semibold">{query.teamName}</h4>
+                            <p className="text-sm text-muted-foreground">
+                              Team ID: {query.teamId}
+                            </p>
+                          </div>
+                          {query.adminResponse ? (
+                            <Badge className="bg-christmas-green/20 text-christmas-green border-christmas-green">
+                              Resolved
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-christmas-gold/20 text-christmas-gold border-christmas-gold">
+                              Pending
+                            </Badge>
+                          )}
+                        </div>
+
+                        <div className="space-y-3">
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">User Query:</p>
+                            <p className="text-sm bg-muted/50 p-3 rounded">
+                              {query.escalationReason || query.message}
+                            </p>
+                          </div>
+
+                          {query.adminResponse && (
+                            <div>
+                              <p className="text-xs text-muted-foreground mb-1">
+                                Admin Response:
+                              </p>
+                              <p className="text-sm bg-christmas-green/10 p-3 rounded border border-christmas-green/20">
+                                {query.adminResponse}
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Responded by {query.adminRespondedBy} on{' '}
+                                {query.adminRespondedAt && 
+                                  new Date(query.adminRespondedAt.toMillis()).toLocaleString()}
+                              </p>
+                            </div>
+                          )}
+
+                          {!query.adminResponse && selectedQuery?.messageId === query.messageId ? (
+                            <div className="space-y-2">
+                              <textarea
+                                value={adminResponse}
+                                onChange={(e) => setAdminResponse(e.target.value)}
+                                placeholder="Type your response..."
+                                className="w-full min-h-[100px] p-3 rounded border bg-background resize-none"
+                              />
+                              <div className="flex gap-2">
+                                <Button
+                                  onClick={handleSendResponse}
+                                  disabled={!adminResponse.trim()}
+                                  className="bg-christmas-green hover:bg-christmas-green/90"
+                                >
+                                  <Send className="w-4 h-4 mr-2" />
+                                  Send Response
+                                </Button>
+                                <Button
+                                  onClick={() => {
+                                    setSelectedQuery(null);
+                                    setAdminResponse('');
+                                  }}
+                                  variant="outline"
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
+                          ) : !query.adminResponse ? (
+                            <Button
+                              onClick={() => setSelectedQuery(query)}
+                              variant="outline"
+                              className="w-full"
+                            >
+                              <Mail className="w-4 h-4 mr-2" />
+                              Respond to Query
+                            </Button>
+                          ) : null}
+                        </div>
+
+                        <p className="text-xs text-muted-foreground mt-3">
+                          Escalated: {new Date(query.timestamp.toMillis()).toLocaleString()}
+                        </p>
+                      </Card>
+                    ))}
+                  </div>
+                )}
               </TabsContent>
             </Tabs>
           </div>

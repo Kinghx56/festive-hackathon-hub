@@ -46,6 +46,21 @@ export interface TeamData {
   };
 }
 
+// Chat Message Interface
+export interface ChatMessage {
+  messageId: string;
+  teamId: string;
+  teamName: string;
+  sender: 'team' | 'bot' | 'admin';
+  message: string;
+  timestamp: Timestamp;
+  isEscalated?: boolean;
+  escalationReason?: string;
+  adminResponse?: string;
+  adminRespondedAt?: Timestamp;
+  adminRespondedBy?: string;
+}
+
 // Generate unique Team ID
 export const generateTeamId = async (): Promise<string> => {
   const year = new Date().getFullYear();
@@ -376,6 +391,166 @@ export const getTeamById = async (
     return {
       success: false,
       message: 'Failed to fetch team.',
+    };
+  }
+};
+
+// ============= CHAT FUNCTIONS =============
+
+// Save chat message
+export const saveChatMessage = async (
+  teamId: string,
+  teamName: string,
+  sender: 'team' | 'bot' | 'admin',
+  message: string,
+  isEscalated: boolean = false,
+  escalationReason?: string
+): Promise<{ success: boolean; messageId?: string; message: string }> => {
+  try {
+    const messageId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    const chatMessage: any = {
+      messageId,
+      teamId,
+      teamName,
+      sender,
+      message,
+      timestamp: serverTimestamp(),
+    };
+
+    // Only add optional fields if they have values
+    if (isEscalated) {
+      chatMessage.isEscalated = isEscalated;
+    }
+    if (escalationReason) {
+      chatMessage.escalationReason = escalationReason;
+    }
+
+    const messagesRef = collection(db, 'chatMessages');
+    await addDoc(messagesRef, chatMessage);
+
+    return {
+      success: true,
+      messageId,
+      message: 'Message saved successfully',
+    };
+  } catch (error) {
+    console.error('Error saving chat message:', error);
+    return {
+      success: false,
+      message: 'Failed to save message',
+    };
+  }
+};
+
+// Get chat history for a team
+export const getChatHistory = async (
+  teamId: string
+): Promise<{ success: boolean; messages: ChatMessage[]; message: string }> => {
+  try {
+    const messagesRef = collection(db, 'chatMessages');
+    const q = query(messagesRef, where('teamId', '==', teamId));
+    const querySnapshot = await getDocs(q);
+
+    const messages: ChatMessage[] = [];
+    querySnapshot.forEach((doc) => {
+      messages.push({ ...doc.data() } as ChatMessage);
+    });
+
+    // Sort by timestamp
+    messages.sort((a, b) => {
+      const timeA = a.timestamp?.toMillis() || 0;
+      const timeB = b.timestamp?.toMillis() || 0;
+      return timeA - timeB;
+    });
+
+    return {
+      success: true,
+      messages,
+      message: 'Chat history fetched successfully',
+    };
+  } catch (error) {
+    console.error('Error fetching chat history:', error);
+    return {
+      success: false,
+      messages: [],
+      message: 'Failed to fetch chat history',
+    };
+  }
+};
+
+// Get all escalated queries for admin
+export const getEscalatedQueries = async (): Promise<{
+  success: boolean;
+  messages: ChatMessage[];
+  message: string;
+}> => {
+  try {
+    const messagesRef = collection(db, 'chatMessages');
+    const q = query(messagesRef, where('isEscalated', '==', true));
+    const querySnapshot = await getDocs(q);
+
+    const messages: ChatMessage[] = [];
+    querySnapshot.forEach((doc) => {
+      messages.push({ id: doc.id, ...doc.data() } as ChatMessage & { id: string });
+    });
+
+    // Sort by timestamp (newest first)
+    messages.sort((a, b) => {
+      const timeA = a.timestamp?.toMillis() || 0;
+      const timeB = b.timestamp?.toMillis() || 0;
+      return timeB - timeA;
+    });
+
+    return {
+      success: true,
+      messages,
+      message: 'Escalated queries fetched successfully',
+    };
+  } catch (error) {
+    console.error('Error fetching escalated queries:', error);
+    return {
+      success: false,
+      messages: [],
+      message: 'Failed to fetch escalated queries',
+    };
+  }
+};
+
+// Admin respond to escalated query
+export const respondToEscalatedQuery = async (
+  messageId: string,
+  adminResponse: string,
+  adminName: string = 'Admin'
+): Promise<{ success: boolean; message: string }> => {
+  try {
+    const messagesRef = collection(db, 'chatMessages');
+    const q = query(messagesRef, where('messageId', '==', messageId));
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+      return {
+        success: false,
+        message: 'Message not found',
+      };
+    }
+
+    const docRef = doc(db, 'chatMessages', querySnapshot.docs[0].id);
+    await updateDoc(docRef, {
+      adminResponse,
+      adminRespondedAt: serverTimestamp(),
+      adminRespondedBy: adminName,
+    });
+
+    return {
+      success: true,
+      message: 'Response sent successfully',
+    };
+  } catch (error) {
+    console.error('Error responding to query:', error);
+    return {
+      success: false,
+      message: 'Failed to send response',
     };
   }
 };

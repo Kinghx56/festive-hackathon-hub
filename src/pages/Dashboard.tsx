@@ -29,6 +29,7 @@ import MusicPlayer from '@/components/MusicPlayer';
 import SnowGlobe from '@/components/SnowGlobe';
 import { playSuccessJingle } from '@/utils/sounds';
 import CountdownTimer from '@/components/CountdownTimer';
+import { HackathonChatbot } from '@/components/HackathonChatbot';
 import { TeamData } from '@/services/firestore';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
@@ -414,6 +415,11 @@ const Dashboard = () => {
       </main>
 
       <Footer />
+
+      {/* Chatbot - Only visible in Dashboard */}
+      {teamData && (
+        <HackathonChatbot teamId={teamData.teamId} teamName={teamData.teamName} />
+      )}
     </div>
   );
 };
