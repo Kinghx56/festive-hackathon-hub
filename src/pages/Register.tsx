@@ -35,7 +35,8 @@ const teamInfoSchema = z.object({
   numberOfMembers: z.string(),
   teamLeadName: z.string().min(2, 'Team lead name is required'),
   teamLeadEmail: z.string().email('Please enter a valid email'),
-  teamLeadPhone: z.string().min(10, 'Please enter a valid phone number'),
+  teamLeadPhone: z.string()
+    .regex(/^\d{10}$/, 'Phone number must be exactly 10 digits'),
 });
 
 const projectSchema = z.object({
@@ -131,18 +132,38 @@ const Register = () => {
   };
 
   const handleNext = async () => {
-    // Check for duplicate entries when moving from step 1 (Team Info)
-    if (currentStep === 1 && formData.teamLeadEmail && formData.teamLeadPhone) {
-      const duplicateCheck = await checkDuplicateEntry(
-        formData.teamLeadEmail,
-        formData.teamLeadPhone
-      );
+    // Validate step 1 (Team Info) before proceeding
+    if (currentStep === 1) {
+      const validation = teamInfoSchema.safeParse({
+        teamName: formData.teamName,
+        institutionName: formData.institutionName,
+        numberOfMembers: formData.numberOfMembers,
+        teamLeadName: formData.teamLeadName,
+        teamLeadEmail: formData.teamLeadEmail,
+        teamLeadPhone: formData.teamLeadPhone,
+      });
 
-      if (duplicateCheck.isDuplicate) {
-        toast.error(duplicateCheck.message, {
-          duration: 5000,
+      if (!validation.success) {
+        const error = validation.error.errors[0];
+        toast.error(error.message, {
+          duration: 3000,
         });
         return;
+      }
+
+      // Check for duplicate entries
+      if (formData.teamLeadEmail && formData.teamLeadPhone) {
+        const duplicateCheck = await checkDuplicateEntry(
+          formData.teamLeadEmail,
+          formData.teamLeadPhone
+        );
+
+        if (duplicateCheck.isDuplicate) {
+          toast.error(duplicateCheck.message, {
+            duration: 5000,
+          });
+          return;
+        }
       }
     }
 
@@ -488,9 +509,14 @@ const Register = () => {
                 <Label htmlFor="leadPhone">Team Lead Phone *</Label>
                 <Input
                   id="leadPhone"
-                  placeholder="+91 98765 43210"
+                  type="tel"
+                  placeholder="9876543210"
+                  maxLength={10}
                   value={formData.teamLeadPhone || ''}
-                  onChange={(e) => updateFormData({ teamLeadPhone: e.target.value })}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, '');
+                    updateFormData({ teamLeadPhone: value });
+                  }}
                   className="bg-muted border-border focus:border-christmas-gold"
                 />
               </div>
